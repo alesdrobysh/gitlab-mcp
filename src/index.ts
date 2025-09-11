@@ -1,26 +1,28 @@
 #!/usr/bin/env node
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
-import { GitLabClient, GitLabConfig } from './gitlab-client.js';
+} from "@modelcontextprotocol/sdk/types.js";
+import { GitLabClient, GitLabConfig } from "./gitlab-client.js";
 
 function createServer(instanceId?: string): Server {
-  const serverName = instanceId ? `gitlab-mcp-server-${instanceId}` : 'gitlab-mcp-server';
-  
+  const serverName = instanceId
+    ? `gitlab-mcp-server-${instanceId}`
+    : "gitlab-mcp-server";
+
   return new Server(
     {
       name: serverName,
-      version: '1.0.0',
+      version: "1.0.0",
     },
     {
       capabilities: {
         tools: {},
       },
-    }
+    },
   );
 }
 
@@ -31,11 +33,13 @@ interface ServerConfig {
 
 function getServerConfig(): ServerConfig {
   const host = process.env.GITLAB_HOST;
-  const token = process.env.GITLAB_TOKEN;
-  const instanceId = process.env.MCP_INSTANCE_ID || '';
+  const token = process.env.GITLAB_API_TOKEN;
+  const instanceId = process.env.MCP_INSTANCE_ID || "";
 
   if (!host || !token) {
-    throw new Error('GITLAB_HOST and GITLAB_TOKEN environment variables are required');
+    throw new Error(
+      "GITLAB_HOST and GITLAB_API_TOKEN environment variables are required",
+    );
   }
 
   return {
@@ -53,7 +57,7 @@ try {
   gitlabClient = new GitLabClient(serverConfig.gitlab);
   server = createServer(serverConfig.instanceId);
 } catch (error) {
-  console.error('Failed to initialize server:', error);
+  console.error("Failed to initialize server:", error);
   process.exit(1);
 }
 
@@ -61,44 +65,63 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: 'get_merge_request',
-        description: 'Get merge request details including title, description, and optionally the diff/changes',
+        name: "get_merge_request",
+        description:
+          "Get merge request details including title, description, and optionally the diff/changes",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
             projectId: {
-              type: 'string',
-              description: 'GitLab project ID or path (e.g., "group/project" or "123")',
+              type: "string",
+              description:
+                'GitLab project ID or path (e.g., "group/project" or "123")',
             },
             mergeRequestIid: {
-              type: 'number',
-              description: 'Merge request internal ID (IID)',
+              type: "number",
+              description: "Merge request internal ID (IID)",
             },
             includeDiff: {
-              type: 'boolean',
-              description: 'Whether to include the diff/changes in the response (default: false)',
+              type: "boolean",
+              description:
+                "Whether to include the diff/changes in the response (default: false)",
             },
           },
-          required: ['projectId', 'mergeRequestIid'],
+          required: ["projectId", "mergeRequestIid"],
         },
       },
       {
-        name: 'list_merge_requests',
-        description: 'List merge requests for a project',
+        name: "list_merge_requests",
+        description: "List merge requests for a project",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
             projectId: {
-              type: 'string',
-              description: 'GitLab project ID or path (e.g., "group/project" or "123")',
+              type: "string",
+              description:
+                'GitLab project ID or path (e.g., "group/project" or "123")',
             },
             state: {
-              type: 'string',
-              enum: ['opened', 'closed', 'merged', 'all'],
-              description: 'Filter merge requests by state (default: opened)',
+              type: "string",
+              enum: ["opened", "closed", "merged", "all"],
+              description: "Filter merge requests by state (default: opened)",
             },
           },
-          required: ['projectId'],
+          required: ["projectId"],
+        },
+      },
+      {
+        name: "get_commit_diff",
+        description: "Get commit details and diff from a GitLab commit URL",
+        inputSchema: {
+          type: "object",
+          properties: {
+            commitUrl: {
+              type: "string",
+              description:
+                'Full GitLab commit URL (e.g., "https://gitlab.com/group/project/-/commit/abc123...")',
+            },
+          },
+          required: ["commitUrl"],
         },
       },
     ],
@@ -110,19 +133,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
-      case 'get_merge_request': {
+      case "get_merge_request": {
         const { projectId, mergeRequestIid, includeDiff } = args as {
           projectId: string;
           mergeRequestIid: number;
           includeDiff?: boolean;
         };
 
-        const mergeRequest = await gitlabClient.getMergeRequest(projectId, mergeRequestIid);
-        
+        const mergeRequest = await gitlabClient.getMergeRequest(
+          projectId,
+          mergeRequestIid,
+        );
+
         let result: any = mergeRequest;
-        
+
         if (includeDiff) {
-          const diff = await gitlabClient.getMergeRequestDiff(projectId, mergeRequestIid);
+          const diff = await gitlabClient.getMergeRequestDiff(
+            projectId,
+            mergeRequestIid,
+          );
           result = {
             ...mergeRequest,
             diff: diff,
@@ -132,26 +161,45 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [
             {
-              type: 'text',
+              type: "text",
               text: JSON.stringify(result, null, 2),
             },
           ],
         };
       }
 
-      case 'list_merge_requests': {
+      case "list_merge_requests": {
         const { projectId, state } = args as {
           projectId: string;
-          state?: 'opened' | 'closed' | 'merged' | 'all';
+          state?: "opened" | "closed" | "merged" | "all";
         };
 
-        const mergeRequests = await gitlabClient.listMergeRequests(projectId, { state });
+        const mergeRequests = await gitlabClient.listMergeRequests(projectId, {
+          state,
+        });
 
         return {
           content: [
             {
-              type: 'text',
+              type: "text",
               text: JSON.stringify(mergeRequests, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_commit_diff": {
+        const { commitUrl } = args as {
+          commitUrl: string;
+        };
+
+        const commitDiff = await gitlabClient.getCommitDiff(commitUrl);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(commitDiff, null, 2),
             },
           ],
         };
@@ -164,7 +212,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return {
       content: [
         {
-          type: 'text',
+          type: "text",
           text: `Error: ${error instanceof Error ? error.message : String(error)}`,
         },
       ],
@@ -175,11 +223,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 async function main() {
   const transport = new StdioServerTransport();
-  console.error(`GitLab MCP server running on stdio${serverConfig.instanceId ? ` (instance: ${serverConfig.instanceId})` : ''}`);
+  console.error(
+    `GitLab MCP server running on stdio${serverConfig.instanceId ? ` (instance: ${serverConfig.instanceId})` : ""}`,
+  );
   await server.connect(transport);
 }
 
 main().catch((error) => {
-  console.error('Server error:', error);
+  console.error("Server error:", error);
   process.exit(1);
 });

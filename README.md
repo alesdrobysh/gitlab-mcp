@@ -28,7 +28,7 @@ Set the following environment variables:
 
 ### Required
 - `GITLAB_HOST`: Your GitLab instance URL (e.g., `https://gitlab.example.com` or `https://gitlab.com`)
-- `GITLAB_TOKEN`: Your GitLab access token
+- `GITLAB_API_TOKEN`: Your GitLab access token
 
 ### Optional (for multiple instances)
 - `MCP_INSTANCE_ID`: Unique identifier for the server instance (useful for logging and identification)
@@ -45,7 +45,7 @@ cp .env.example .env
 1. Go to your GitLab instance
 2. Navigate to User Settings → Access Tokens
 3. Create a new token with `api` scope
-4. Copy the token and set it as `GITLAB_TOKEN`
+4. Copy the token and set it as `GITLAB_API_TOKEN`
 
 ## Usage
 
@@ -68,13 +68,13 @@ Each instance runs as a separate process with its own configuration:
 npm run build
 
 # Instance 1 (in terminal 1)
-GITLAB_HOST=https://gitlab.example.com GITLAB_TOKEN=token1 MCP_INSTANCE_ID=instance1 npm start
+GITLAB_HOST=https://gitlab.example.com GITLAB_API_TOKEN=token1 MCP_INSTANCE_ID=instance1 npm start
 
-# Instance 2 (in terminal 2)  
-GITLAB_HOST=https://gitlab.com GITLAB_TOKEN=token2 MCP_INSTANCE_ID=instance2 npm start
+# Instance 2 (in terminal 2)
+GITLAB_HOST=https://gitlab.com GITLAB_API_TOKEN=token2 MCP_INSTANCE_ID=instance2 npm start
 
 # Instance 3 (in terminal 3)
-GITLAB_HOST=https://gitlab.internal.com GITLAB_TOKEN=token3 MCP_INSTANCE_ID=instance3 npm start
+GITLAB_HOST=https://gitlab.internal.com GITLAB_API_TOKEN=token3 MCP_INSTANCE_ID=instance3 npm start
 ```
 
 Each instance can connect to different GitLab hosts with different tokens, allowing multiple tools to work with different GitLab environments simultaneously.
@@ -132,25 +132,25 @@ When running multiple instances, each tool/client can connect to a different ins
       "args": ["path/to/gitlab-mcp/dist/index.js"],
       "env": {
         "GITLAB_HOST": "https://gitlab.example.com",
-        "GITLAB_TOKEN": "company_token",
+        "GITLAB_API_TOKEN": "company_token",
         "MCP_INSTANCE_ID": "company"
       }
     },
     "gitlab-personal": {
-      "command": "node", 
+      "command": "node",
       "args": ["path/to/gitlab-mcp/dist/index.js"],
       "env": {
         "GITLAB_HOST": "https://gitlab.com",
-        "GITLAB_TOKEN": "personal_token",
+        "GITLAB_API_TOKEN": "personal_token",
         "MCP_INSTANCE_ID": "personal"
       }
     },
     "gitlab-internal": {
       "command": "node",
-      "args": ["path/to/gitlab-mcp/dist/index.js"], 
+      "args": ["path/to/gitlab-mcp/dist/index.js"],
       "env": {
         "GITLAB_HOST": "https://gitlab.internal.company.com",
-        "GITLAB_TOKEN": "internal_token",
+        "GITLAB_API_TOKEN": "internal_token",
         "MCP_INSTANCE_ID": "internal"
       }
     }

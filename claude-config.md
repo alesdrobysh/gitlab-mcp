@@ -5,7 +5,7 @@
 1. Set up your environment variables:
    ```bash
    export GITLAB_HOST=https://your-gitlab-instance.com
-   export GITLAB_TOKEN=your_gitlab_access_token
+   export GITLAB_API_TOKEN=your_gitlab_access_token
    ```
 
 2. Build the MCP server:
@@ -31,7 +31,7 @@ Add the server to your Claude Desktop configuration file:
       "args": ["/Users/ales.drobysh/workspace/gitlab-mcp/dist/index.js"],
       "env": {
         "GITLAB_HOST": "https://your-gitlab-instance.com",
-        "GITLAB_TOKEN": "your_gitlab_access_token"
+        "GITLAB_API_TOKEN": "your_gitlab_access_token"
       }
     }
   }
@@ -53,7 +53,7 @@ Create or edit your Claude Code configuration:
         "args": ["/Users/ales.drobysh/workspace/gitlab-mcp/dist/index.js"],
         "env": {
           "GITLAB_HOST": "https://your-gitlab-instance.com",
-          "GITLAB_TOKEN": "your_gitlab_access_token"
+          "GITLAB_API_TOKEN": "your_gitlab_access_token"
         }
       }
     }
@@ -77,7 +77,7 @@ npm install -g gitlab-mcp-server-1.0.0.tgz
       "command": "gitlab-mcp-server",
       "env": {
         "GITLAB_HOST": "https://your-gitlab-instance.com",
-        "GITLAB_TOKEN": "your_gitlab_access_token"
+        "GITLAB_API_TOKEN": "your_gitlab_access_token"
       }
     }
   }
@@ -90,14 +90,14 @@ npm install -g gitlab-mcp-server-1.0.0.tgz
 ```bash
 # Add to your ~/.bashrc, ~/.zshrc, or equivalent
 export GITLAB_HOST="https://your-gitlab-instance.com"
-export GITLAB_TOKEN="your_gitlab_access_token"
+export GITLAB_API_TOKEN="your_gitlab_access_token"
 ```
 
 ### Option B: .env File (Development)
 Create `.env` in the project root:
 ```bash
 GITLAB_HOST=https://your-gitlab-instance.com
-GITLAB_TOKEN=your_gitlab_access_token
+GITLAB_API_TOKEN=your_gitlab_access_token
 ```
 
 Then modify your config to load from .env:
@@ -119,7 +119,7 @@ Then modify your config to load from .env:
 3. Create a new token with these scopes:
    - `api` (for full API access)
    - `read_repository` (minimum for MR diffs)
-4. Copy the token and use it as `GITLAB_TOKEN`
+4. Copy the token and use it as `GITLAB_API_TOKEN`
 
 ## Testing the Configuration
 

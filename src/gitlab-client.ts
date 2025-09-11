@@ -5,6 +5,42 @@ export interface GitLabConfig {
   token: string;
 }
 
+interface ParsedCommitUrl {
+  projectId: string;
+  commitSha: string;
+}
+
+function parseGitLabCommitUrl(url: string): ParsedCommitUrl {
+  try {
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
+    
+    // Expected format: /group/project/-/commit/sha
+    // or /group/subgroup/project/-/commit/sha
+    const commitIndex = pathParts.indexOf('commit');
+    if (commitIndex === -1 || commitIndex === pathParts.length - 1) {
+      throw new Error('Invalid commit URL format');
+    }
+    
+    const commitSha = pathParts[commitIndex + 1];
+    
+    // Extract project path (everything before /-/commit)
+    const dashIndex = pathParts.indexOf('-');
+    if (dashIndex === -1 || dashIndex === 0) {
+      throw new Error('Invalid GitLab URL format');
+    }
+    
+    const projectPath = pathParts.slice(0, dashIndex).join('/');
+    
+    return {
+      projectId: projectPath,
+      commitSha: commitSha,
+    };
+  } catch (error) {
+    throw new Error(`Failed to parse GitLab commit URL: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 export class GitLabClient {
   private api: InstanceType<typeof Gitlab>;
 
@@ -98,6 +134,41 @@ export class GitLabClient {
       }));
     } catch (error) {
       throw new Error(`Failed to list merge requests: ${error}`);
+    }
+  }
+
+  async getCommitDiff(commitUrl: string) {
+    try {
+      const { projectId, commitSha } = parseGitLabCommitUrl(commitUrl);
+      
+      const commit = await this.api.Commits.show(projectId, commitSha);
+      const commitDiff = await this.api.Commits.showDiff(projectId, commitSha);
+      
+      return {
+        commit: {
+          id: commit.id,
+          short_id: commit.short_id,
+          title: commit.title,
+          message: commit.message,
+          author_name: commit.author_name,
+          author_email: commit.author_email,
+          authored_date: commit.authored_date,
+          committer_name: commit.committer_name,
+          committer_email: commit.committer_email,
+          committed_date: commit.committed_date,
+          web_url: commit.web_url,
+        },
+        diff: Array.isArray(commitDiff) ? commitDiff.map((change: any) => ({
+          old_path: change.old_path,
+          new_path: change.new_path,
+          diff: change.diff,
+          new_file: change.new_file,
+          renamed_file: change.renamed_file,
+          deleted_file: change.deleted_file,
+        })) : [],
+      };
+    } catch (error) {
+      throw new Error(`Failed to fetch commit diff: ${error}`);
     }
   }
 }
