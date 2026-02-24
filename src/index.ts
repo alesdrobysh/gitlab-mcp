@@ -124,6 +124,107 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["commitUrl"],
         },
       },
+      {
+        name: "get_merge_request_pipelines",
+        description: "Get pipelines for a merge request",
+        inputSchema: {
+          type: "object",
+          properties: {
+            projectId: {
+              type: "string",
+              description:
+                'GitLab project ID or path (e.g., "group/project" or "123")',
+            },
+            mergeRequestIid: {
+              type: "number",
+              description: "Merge request internal ID (IID)",
+            },
+          },
+          required: ["projectId", "mergeRequestIid"],
+        },
+      },
+      {
+        name: "get_pipeline_jobs",
+        description: "Get jobs for a pipeline",
+        inputSchema: {
+          type: "object",
+          properties: {
+            projectId: {
+              type: "string",
+              description:
+                'GitLab project ID or path (e.g., "group/project" or "123")',
+            },
+            pipelineId: {
+              type: "number",
+              description: "Pipeline ID",
+            },
+          },
+          required: ["projectId", "pipelineId"],
+        },
+      },
+      {
+        name: "get_failed_jobs",
+        description:
+          "Get failed jobs by pipeline ID or by latest merge request pipeline",
+        inputSchema: {
+          type: "object",
+          properties: {
+            projectId: {
+              type: "string",
+              description:
+                'GitLab project ID or path (e.g., "group/project" or "123")',
+            },
+            pipelineId: {
+              type: "number",
+              description: "Pipeline ID",
+            },
+            mergeRequestIid: {
+              type: "number",
+              description:
+                "Merge request internal ID (IID), uses latest MR pipeline",
+            },
+          },
+          required: ["projectId"],
+        },
+      },
+      {
+        name: "get_job_log",
+        description: "Get job log (trace) for a job",
+        inputSchema: {
+          type: "object",
+          properties: {
+            projectId: {
+              type: "string",
+              description:
+                'GitLab project ID or path (e.g., "group/project" or "123")',
+            },
+            jobId: {
+              type: "number",
+              description: "Job ID",
+            },
+          },
+          required: ["projectId", "jobId"],
+        },
+      },
+      {
+        name: "get_job_artifacts",
+        description: "Get job artifacts metadata and download links",
+        inputSchema: {
+          type: "object",
+          properties: {
+            projectId: {
+              type: "string",
+              description:
+                'GitLab project ID or path (e.g., "group/project" or "123")',
+            },
+            jobId: {
+              type: "number",
+              description: "Job ID",
+            },
+          },
+          required: ["projectId", "jobId"],
+        },
+      },
     ],
   };
 });
@@ -200,6 +301,109 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: JSON.stringify(commitDiff, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_merge_request_pipelines": {
+        const { projectId, mergeRequestIid } = args as {
+          projectId: string;
+          mergeRequestIid: number;
+        };
+
+        const pipelines = await gitlabClient.getMergeRequestPipelines(
+          projectId,
+          mergeRequestIid,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(pipelines, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_pipeline_jobs": {
+        const { projectId, pipelineId } = args as {
+          projectId: string;
+          pipelineId: number;
+        };
+
+        const jobs = await gitlabClient.getPipelineJobs(projectId, pipelineId);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(jobs, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_failed_jobs": {
+        const { projectId, pipelineId, mergeRequestIid } = args as {
+          projectId: string;
+          pipelineId?: number;
+          mergeRequestIid?: number;
+        };
+
+        if (!pipelineId && !mergeRequestIid) {
+          throw new Error(
+            "Either pipelineId or mergeRequestIid must be provided",
+          );
+        }
+
+        const failedJobs = await gitlabClient.getFailedJobs(projectId, {
+          pipelineId,
+          mergeRequestIid,
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(failedJobs, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_job_log": {
+        const { projectId, jobId } = args as {
+          projectId: string;
+          jobId: number;
+        };
+
+        const jobLog = await gitlabClient.getJobLog(projectId, jobId);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(jobLog, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_job_artifacts": {
+        const { projectId, jobId } = args as {
+          projectId: string;
+          jobId: number;
+        };
+
+        const jobArtifacts = await gitlabClient.getJobArtifacts(projectId, jobId);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(jobArtifacts, null, 2),
             },
           ],
         };

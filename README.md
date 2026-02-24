@@ -1,12 +1,17 @@
 # GitLab MCP Server
 
-A Model Context Protocol (MCP) server for GitLab integration, written in TypeScript. This server allows you to interact with GitLab merge requests through MCP tools.
+A Model Context Protocol (MCP) server for GitLab integration, written in TypeScript. This server allows you to interact with GitLab merge requests, commits, pipelines, and jobs through MCP tools.
 
 ## Features
 
 - 🔍 Get merge request details (title, description, metadata)
 - 📄 Retrieve merge request diffs
 - 📋 List merge requests for a project
+- 🔀 Get pipelines for a merge request
+- 🧰 Get jobs for a pipeline
+- 🚨 Get failed jobs by pipeline or merge request
+- 📜 Retrieve job logs (trace)
+- 📦 Retrieve job artifacts metadata and download links
 - 🔐 Supports self-hosted GitLab instances
 - 🔑 Token-based authentication via environment variables
 
@@ -96,6 +101,50 @@ List merge requests for a project.
 - `projectId` (string): GitLab project ID or path
 - `state` (optional string): Filter by state ("opened", "closed", "merged", "all"). Default: "opened"
 
+#### `get_commit_diff`
+Get commit details and diff using a full GitLab commit URL.
+
+**Parameters:**
+- `commitUrl` (string): Full GitLab commit URL
+
+#### `get_merge_request_pipelines`
+Get pipelines for a merge request.
+
+**Parameters:**
+- `projectId` (string): GitLab project ID or path
+- `mergeRequestIid` (number): Merge request internal ID (IID)
+
+#### `get_pipeline_jobs`
+Get jobs for a pipeline.
+
+**Parameters:**
+- `projectId` (string): GitLab project ID or path
+- `pipelineId` (number): Pipeline ID
+
+#### `get_failed_jobs`
+Get failed jobs either directly by pipeline ID or from the latest pipeline of a merge request.
+
+**Parameters:**
+- `projectId` (string): GitLab project ID or path
+- `pipelineId` (optional number): Pipeline ID
+- `mergeRequestIid` (optional number): Merge request internal ID (IID)
+
+Provide either `pipelineId` or `mergeRequestIid`.
+
+#### `get_job_log`
+Get job log (trace) for a job.
+
+**Parameters:**
+- `projectId` (string): GitLab project ID or path
+- `jobId` (number): Job ID
+
+#### `get_job_artifacts`
+Get job artifacts metadata and download links for a job.
+
+**Parameters:**
+- `projectId` (string): GitLab project ID or path
+- `jobId` (number): Job ID
+
 ## Example Usage with MCP Client
 
 ```javascript
@@ -116,6 +165,36 @@ await callTool("get_merge_request", {
 await callTool("list_merge_requests", {
   projectId: "mygroup/myproject",
   state: "opened"
+});
+
+// List pipelines for an MR
+await callTool("get_merge_request_pipelines", {
+  projectId: "mygroup/myproject",
+  mergeRequestIid: 42
+});
+
+// Get jobs from pipeline
+await callTool("get_pipeline_jobs", {
+  projectId: "mygroup/myproject",
+  pipelineId: 123456
+});
+
+// Get failed jobs from latest MR pipeline
+await callTool("get_failed_jobs", {
+  projectId: "mygroup/myproject",
+  mergeRequestIid: 42
+});
+
+// Get raw CI job log
+await callTool("get_job_log", {
+  projectId: "mygroup/myproject",
+  jobId: 987654
+});
+
+// Get artifact metadata and links
+await callTool("get_job_artifacts", {
+  projectId: "mygroup/myproject",
+  jobId: 987654
 });
 ```
 
