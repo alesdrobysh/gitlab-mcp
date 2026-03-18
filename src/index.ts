@@ -6,7 +6,11 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { GitLabClient, GitLabConfig } from "./gitlab-client.js";
+import {
+  CreateMergeRequestInput,
+  GitLabClient,
+  GitLabConfig,
+} from "./gitlab-client.js";
 
 function createServer(instanceId?: string): Server {
   const serverName = instanceId
@@ -87,6 +91,90 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["projectId", "mergeRequestIid"],
+        },
+      },
+      {
+        name: "create_merge_request",
+        description: "Create a merge request in a GitLab project",
+        inputSchema: {
+          type: "object",
+          properties: {
+            projectId: {
+              type: "string",
+              description:
+                'GitLab project ID or path (e.g., "group/project" or "123")',
+            },
+            sourceBranch: {
+              type: "string",
+              description: "Source branch name",
+            },
+            targetBranch: {
+              type: "string",
+              description: "Target branch name",
+            },
+            title: {
+              type: "string",
+              description: "Merge request title",
+            },
+            description: {
+              type: "string",
+              description: "Merge request description",
+            },
+            labels: {
+              type: "array",
+              items: {
+                type: "string",
+              },
+              description: "Labels to apply to the merge request",
+            },
+            assigneeId: {
+              type: "number",
+              description: "Single assignee user ID",
+            },
+            assigneeIds: {
+              type: "array",
+              items: {
+                type: "number",
+              },
+              description: "Assignee user IDs",
+            },
+            reviewerId: {
+              type: "number",
+              description: "Single reviewer user ID",
+            },
+            reviewerIds: {
+              type: "array",
+              items: {
+                type: "number",
+              },
+              description: "Reviewer user IDs",
+            },
+            removeSourceBranch: {
+              type: "boolean",
+              description: "Remove source branch when the merge request is merged",
+            },
+            allowCollaboration: {
+              type: "boolean",
+              description: "Allow commits from upstream members",
+            },
+            allowMaintainerToPush: {
+              type: "boolean",
+              description: "Allow maintainers to push to the source branch",
+            },
+            squash: {
+              type: "boolean",
+              description: "Suggest squashing commits when merging",
+            },
+            targetProjectId: {
+              type: "number",
+              description: "Optional target project ID for cross-project merge requests",
+            },
+            draft: {
+              type: "boolean",
+              description: "Create the merge request as a draft by prefixing the title",
+            },
+          },
+          required: ["projectId", "sourceBranch", "targetBranch", "title"],
         },
       },
       {
@@ -249,13 +337,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         let result: any = mergeRequest;
 
         if (includeDiff) {
-          const diff = await gitlabClient.getMergeRequestDiff(
+          const diffResult = await gitlabClient.getMergeRequestDiff(
             projectId,
             mergeRequestIid,
           );
           result = {
             ...mergeRequest,
-            diff: diff,
+            diff: diffResult.changes,
+            diff_overflow: diffResult.overflow,
           };
         }
 
@@ -264,6 +353,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "create_merge_request": {
+        const createMergeRequestInput = args as unknown as CreateMergeRequestInput;
+
+        const mergeRequest = await gitlabClient.createMergeRequest(
+          createMergeRequestInput,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(mergeRequest, null, 2),
             },
           ],
         };

@@ -56,6 +56,39 @@ interface GitLabJob {
   };
 }
 
+interface GitLabMergeRequestDiff {
+  old_path?: string;
+  new_path?: string;
+  diff?: string;
+  new_file?: boolean;
+  renamed_file?: boolean;
+  deleted_file?: boolean;
+}
+
+interface GitLabMergeRequestDiffResult {
+  changes: GitLabMergeRequestDiff[];
+  overflow: boolean;
+}
+
+export interface CreateMergeRequestInput {
+  projectId: string | number;
+  sourceBranch: string;
+  targetBranch: string;
+  title: string;
+  description?: string;
+  labels?: string[];
+  assigneeId?: number;
+  assigneeIds?: number[];
+  reviewerId?: number;
+  reviewerIds?: number[];
+  removeSourceBranch?: boolean;
+  allowCollaboration?: boolean;
+  allowMaintainerToPush?: boolean;
+  squash?: boolean;
+  targetProjectId?: number;
+  draft?: boolean;
+}
+
 interface ParsedCommitUrl {
   projectId: string;
   commitSha: string;
@@ -90,6 +123,25 @@ function parseGitLabCommitUrl(url: string): ParsedCommitUrl {
   } catch (error) {
     throw new Error(`Failed to parse GitLab commit URL: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+function normalizeMergeRequestDiffs(changes: any[]): GitLabMergeRequestDiff[] {
+  return changes.map((change: any) => ({
+    old_path: change.old_path,
+    new_path: change.new_path,
+    diff: change.diff,
+    new_file: change.new_file,
+    renamed_file: change.renamed_file,
+    deleted_file: change.deleted_file,
+  }));
+}
+
+function normalizeCreateMergeRequestTitle(title: string, draft?: boolean): string {
+  if (!draft || /^(draft|wip):/i.test(title)) {
+    return title;
+  }
+
+  return `Draft: ${title}`;
 }
 
 export class GitLabClient {
@@ -136,66 +188,94 @@ export class GitLabClient {
     return response.text();
   }
 
+  private formatMergeRequest(mr: any) {
+    return {
+      id: mr.id,
+      iid: mr.iid,
+      title: mr.title,
+      description: mr.description,
+      state: mr.state,
+      draft: Boolean(mr.draft ?? mr.work_in_progress),
+      source_branch: mr.source_branch,
+      target_branch: mr.target_branch,
+      source_project_id: mr.source_project_id,
+      target_project_id: mr.target_project_id,
+      merge_status: mr.merge_status,
+      sha: mr.sha,
+      labels: Array.isArray(mr.labels) ? mr.labels : [],
+      author: mr.author,
+      assignees: Array.isArray(mr.assignees) ? mr.assignees : [],
+      reviewers: Array.isArray(mr.reviewers) ? mr.reviewers : [],
+      references: mr.references,
+      diff_refs: mr.diff_refs,
+      created_at: mr.created_at,
+      updated_at: mr.updated_at,
+      web_url: mr.web_url,
+    };
+  }
+
   async getMergeRequest(projectId: string | number, mergeRequestIid: number) {
     try {
       const mr = await this.api.MergeRequests.show(projectId, mergeRequestIid);
-      return {
-        title: mr.title,
-        description: mr.description,
-        state: mr.state,
-        source_branch: mr.source_branch,
-        target_branch: mr.target_branch,
-        author: mr.author,
-        created_at: mr.created_at,
-        updated_at: mr.updated_at,
-        web_url: mr.web_url,
-      };
+
+      return this.formatMergeRequest(mr);
     } catch (error) {
       throw new Error(`Failed to fetch merge request: ${error}`);
     }
   }
 
-  async getMergeRequestDiff(projectId: string | number, mergeRequestIid: number) {
+  async getMergeRequestDiff(
+    projectId: string | number,
+    mergeRequestIid: number,
+  ): Promise<GitLabMergeRequestDiffResult> {
     try {
-      const mr = await this.api.MergeRequests.show(projectId, mergeRequestIid, { includeRebaseInProgress: false });
-      
-      const mrChanges = await this.api.MergeRequests.show(projectId, mergeRequestIid);
-      
-      // Try to get changes from the merge request
-      if ('changes' in mrChanges && Array.isArray(mrChanges.changes)) {
-        return mrChanges.changes.map((change: any) => ({
-          old_path: change.old_path,
-          new_path: change.new_path,
-          diff: change.diff,
-          new_file: change.new_file,
-          renamed_file: change.renamed_file,
-          deleted_file: change.deleted_file,
-        }));
+      const mrChanges = await this.api.MergeRequests.showChanges(
+        projectId,
+        mergeRequestIid,
+      );
+
+      if (Array.isArray(mrChanges.changes)) {
+        return {
+          changes: normalizeMergeRequestDiffs(mrChanges.changes),
+          overflow: Boolean(mrChanges.overflow),
+        };
       }
-      
-      // Fallback: get comparison between source and target branches
-      try {
-        const comparison = await this.api.Repositories.compare(
-          projectId, 
-          String(mr.target_branch), 
-          String(mr.source_branch)
-        );
-        
-        const diffs = Array.isArray(comparison.diffs) ? comparison.diffs : [];
-        return diffs.map((change: any) => ({
-          old_path: change.old_path,
-          new_path: change.new_path,
-          diff: change.diff,
-          new_file: change.new_file,
-          renamed_file: change.renamed_file,
-          deleted_file: change.deleted_file,
-        }));
-      } catch (comparisonError) {
-        console.warn('Could not get branch comparison:', comparisonError);
-        return [];
-      }
+
+      const diffs = await this.api.MergeRequests.allDiffs(projectId, mergeRequestIid);
+      return {
+        changes: normalizeMergeRequestDiffs(Array.isArray(diffs) ? diffs : []),
+        overflow: false,
+      };
     } catch (error) {
       throw new Error(`Failed to fetch merge request diff: ${error}`);
+    }
+  }
+
+  async createMergeRequest(input: CreateMergeRequestInput) {
+    try {
+      const mergeRequest = await this.api.MergeRequests.create(
+        input.projectId,
+        input.sourceBranch,
+        input.targetBranch,
+        normalizeCreateMergeRequestTitle(input.title, input.draft),
+        {
+          targetProjectId: input.targetProjectId,
+          description: input.description,
+          labels: input.labels,
+          assigneeId: input.assigneeId,
+          assigneeIds: input.assigneeIds,
+          reviewerId: input.reviewerId,
+          reviewerIds: input.reviewerIds,
+          removeSourceBranch: input.removeSourceBranch,
+          allowCollaboration: input.allowCollaboration,
+          allowMaintainerToPush: input.allowMaintainerToPush,
+          squash: input.squash,
+        },
+      );
+
+      return this.formatMergeRequest(mergeRequest);
+    } catch (error) {
+      throw new Error(`Failed to create merge request: ${error}`);
     }
   }
 

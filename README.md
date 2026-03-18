@@ -5,6 +5,7 @@ A Model Context Protocol (MCP) server for GitLab integration, written in TypeScr
 ## Features
 
 - 🔍 Get merge request details (title, description, metadata)
+- 📝 Create merge requests in GitLab projects
 - 📄 Retrieve merge request diffs
 - 📋 List merge requests for a project
 - 🔀 Get pipelines for a merge request
@@ -94,6 +95,27 @@ Get detailed information about a specific merge request, optionally including th
 - `mergeRequestIid` (number): Merge request internal ID (IID)
 - `includeDiff` (optional boolean): Whether to include the diff/changes in the response (default: false)
 
+The response includes automation-friendly metadata such as `id`, `iid`, `draft`, `source_project_id`, `target_project_id`, `labels`, `assignees`, `reviewers`, `diff_refs`, and `sha`. When `includeDiff` is enabled, the response also includes `diff_overflow`.
+
+#### `create_merge_request`
+Create a merge request in a GitLab project.
+
+**Parameters:**
+- `projectId` (string): GitLab project ID or path
+- `sourceBranch` (string): Source branch name
+- `targetBranch` (string): Target branch name
+- `title` (string): Merge request title
+- `description` (optional string): Merge request description
+- `labels` (optional string[]): Labels to apply
+- `assigneeId` / `assigneeIds` (optional number / number[]): Assignee user IDs
+- `reviewerId` / `reviewerIds` (optional number / number[]): Reviewer user IDs
+- `removeSourceBranch` (optional boolean): Remove the source branch on merge
+- `allowCollaboration` (optional boolean): Allow upstream members to push
+- `allowMaintainerToPush` (optional boolean): Allow maintainers to push
+- `squash` (optional boolean): Suggest squashing commits on merge
+- `targetProjectId` (optional number): Target project ID for cross-project MRs
+- `draft` (optional boolean): Prefix the title with `Draft:`
+
 #### `list_merge_requests`
 List merge requests for a project.
 
@@ -159,6 +181,17 @@ await callTool("get_merge_request", {
   projectId: "123",
   mergeRequestIid: 42,
   includeDiff: true
+});
+
+// Create a merge request
+await callTool("create_merge_request", {
+  projectId: "mygroup/myproject",
+  sourceBranch: "feature/new-e2e-test",
+  targetBranch: "main",
+  title: "Add login dashboard E2E coverage",
+  description: "## Summary\n- add a generated Playwright test\n- validate the scenario locally",
+  labels: ["qa", "e2e"],
+  removeSourceBranch: true
 });
 
 // List open merge requests
