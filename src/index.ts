@@ -313,6 +313,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["projectId", "jobId"],
         },
       },
+      {
+        name: "get_merge_request_comments",
+        description: "Get comments (notes) for a merge request",
+        inputSchema: {
+          type: "object",
+          properties: {
+            projectId: {
+              type: "string",
+              description:
+                'GitLab project ID or path (e.g., "group/project" or "123")',
+            },
+            mergeRequestIid: {
+              type: "number",
+              description: "Merge request internal ID (IID)",
+            },
+            systemNotes: {
+              type: "boolean",
+              description:
+                "Include system notes (e.g. status changes, assignments). Default: false",
+            },
+          },
+          required: ["projectId", "mergeRequestIid"],
+        },
+      },
     ],
   };
 });
@@ -510,6 +534,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: JSON.stringify(jobArtifacts, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_merge_request_comments": {
+        const { projectId, mergeRequestIid, systemNotes } = args as {
+          projectId: string;
+          mergeRequestIid: number;
+          systemNotes?: boolean;
+        };
+
+        const comments = await gitlabClient.getMergeRequestComments(
+          projectId,
+          mergeRequestIid,
+          { systemNotes },
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(comments, null, 2),
             },
           ],
         };

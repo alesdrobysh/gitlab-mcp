@@ -56,6 +56,29 @@ interface GitLabJob {
   };
 }
 
+interface GitLabMergeRequestNote {
+  id: number;
+  body?: string;
+  author?: {
+    id?: number;
+    username?: string;
+    name?: string;
+  };
+  created_at?: string;
+  updated_at?: string;
+  system?: boolean;
+  resolvable?: boolean;
+  resolved?: boolean;
+  resolved_by?: {
+    id?: number;
+    username?: string;
+    name?: string;
+  } | null;
+  noteable_type?: string;
+  noteable_id?: number;
+  noteable_iid?: number;
+}
+
 interface GitLabMergeRequestDiff {
   old_path?: string;
   new_path?: string;
@@ -334,6 +357,40 @@ export class GitLabClient {
       };
     } catch (error) {
       throw new Error(`Failed to fetch commit diff: ${error}`);
+    }
+  }
+
+  async getMergeRequestComments(
+    projectId: string | number,
+    mergeRequestIid: number,
+    options: { systemNotes?: boolean } = {},
+  ) {
+    try {
+      const encodedProjectId = encodeURIComponent(String(projectId));
+      const notes = await this.requestGitLab<GitLabMergeRequestNote[]>(
+        `/projects/${encodedProjectId}/merge_requests/${mergeRequestIid}/notes?per_page=100&sort=asc`,
+      );
+
+      const allNotes = Array.isArray(notes) ? notes : [];
+      const filtered = options.systemNotes
+        ? allNotes
+        : allNotes.filter((note) => !note.system);
+
+      return filtered.map((note) => ({
+        id: note.id,
+        body: note.body,
+        author: note.author,
+        created_at: note.created_at,
+        updated_at: note.updated_at,
+        system: note.system,
+        resolvable: note.resolvable,
+        resolved: note.resolved,
+        resolved_by: note.resolved_by ?? null,
+        noteable_type: note.noteable_type,
+        noteable_iid: note.noteable_iid,
+      }));
+    } catch (error) {
+      throw new Error(`Failed to fetch merge request comments: ${error}`);
     }
   }
 
